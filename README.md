@@ -39,7 +39,4 @@ Trainers & educators
 Faker helps generate random but realistic synthetic data, while Pandas and NumPy make it easy to manipulate, structure, and export the data. Perfect for testing, learning, or prototyping without using sensitive real data.
 
 ✅ Result: A dynamic, random, production-like dataset ready for dashboards, analytics, and portfolio projects.
-
-Comment below if you want the notebook or GitHub repo! 👇
-
 #Python #Pandas #NumPy #PowerBI #DataAnalytics #Faker #SyntheticData #RandomData #Portfolio #DataEngineering #AnalyticsProject
