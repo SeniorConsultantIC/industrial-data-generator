@@ -1,0 +1,155 @@
+# ----------------------------
+# IMPORT LIBRARIES
+# ----------------------------
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+from faker import Faker
+
+# ----------------------------
+# INITIALIZE
+# ----------------------------
+fake = Faker()
+np.random.seed(42)
+Faker.seed(42)
+
+# ----------------------------
+# PARAMETERS
+# ----------------------------
+start_date = datetime(2022, 1, 1)
+end_date = datetime(2024, 12, 31)
+
+# ----------------------------
+# 1️⃣ DEPARTMENTS TABLE
+# ----------------------------
+departments = ['Production', 'Maintenance', 'Quality', 'Logistics', 'R&D']
+Departments = pd.DataFrame({
+    'DepartmentID': [f"DPT{str(i+1).zfill(2)}" for i in range(len(departments))],
+    'Department': departments
+})
+
+# ----------------------------
+# 2️⃣ MACHINES TABLE
+# ----------------------------
+machine_types = ['CNC', 'Lathe', '3D Printer', 'Conveyor', 'Drill']
+Machines = pd.DataFrame({
+    'MachineID': [f"MCH{str(i+1).zfill(3)}" for i in range(20)],
+    'MachineName': [f"{np.random.choice(['Alpha','Beta','Gamma','Delta','Sigma','Omega'])}_{i+1}" for i in range(20)],
+    'Department': np.random.choice(departments, 20),
+    'InstallationDate': [start_date + timedelta(days=np.random.randint(0, 365)) for _ in range(20)],
+    'Criticality': np.random.choice(['High','Medium','Low'], size=20, p=[0.3,0.5,0.2]),
+    'Status': np.random.choice(['Active','Inactive','Maintenance'], 20, p=[0.7,0.1,0.2]),
+    'MachineType': np.random.choice(machine_types, 20)
+})
+
+# Add RLS columns
+Machines['RLS_Department'] = Machines['Department']
+Machines['RLS_Machine'] = Machines['MachineID']
+
+# ----------------------------
+# 3️⃣ STAFF TABLE
+# ----------------------------
+roles = ['Technician','Engineer','Supervisor']
+shifts = ['Morning','Evening','Night']
+Staff = pd.DataFrame({
+    'StaffID': [f"STF{str(i+1).zfill(3)}" for i in range(15)],
+    'Name': [fake.name() for _ in range(15)],
+    'Department': np.random.choice(departments, 15),
+    'Role': np.random.choice(roles, 15),
+    'Shift': np.random.choice(shifts, 15)
+})
+Staff['RLS_Department'] = Staff['Department']
+
+# ----------------------------
+# 4️⃣ CALENDAR TABLE
+# ----------------------------
+dates = pd.date_range(start=start_date, end=end_date)
+Calendar = pd.DataFrame({
+    'Date': dates,
+    'Year': dates.year,
+    'MonthNumber': dates.month,
+    'MonthName': dates.strftime('%b'),
+    'Quarter': 'Q' + dates.quarter.astype(str),
+    'WeekdayNumber': dates.weekday + 1,
+    'WeekdayName': dates.strftime('%A'),
+    'YearMonth': dates.strftime('%Y-%m')
+})
+
+# ----------------------------
+# 5️⃣ SENSOR DATA TABLE
+# ----------------------------
+sensor_rows = []
+for machine in Machines['MachineID']:
+    sensor_dates = np.random.choice(dates, 500, replace=False)
+    for dt in sensor_dates:
+        sensor_rows.append([
+            f"SEN{len(sensor_rows)+1:05d}",
+            machine,
+            pd.to_datetime(dt),
+            round(np.random.normal(75,5),2),
+            round(np.random.normal(0.5,0.1),2),
+            round(np.random.normal(1.2,0.3),2)
+        ])
+SensorData = pd.DataFrame(sensor_rows, columns=['SensorID','MachineID','DateTime','Temperature','Vibration','Pressure'])
+SensorData = SensorData.merge(Machines[['MachineID','RLS_Department','RLS_Machine']], on='MachineID', how='left')
+
+# ----------------------------
+# 6️⃣ MAINTENANCE LOGS TABLE
+# ----------------------------
+maintenance_rows = []
+for machine in Machines['MachineID']:
+    maint_dates = np.random.choice(dates, 10, replace=False)
+    for sd in maint_dates:
+        sd_dt = pd.to_datetime(sd)
+        completion = sd_dt + timedelta(days=np.random.randint(0,3))
+        technician = np.random.choice(Staff['StaffID'])
+        maintenance_rows.append([
+            f"MTN{len(maintenance_rows)+1:04d}",
+            machine,
+            np.random.choice(['Preventive','Corrective']),
+            sd_dt,
+            completion,
+            round((completion - sd_dt).days*24 + np.random.randint(0,5),2),
+            technician
+        ])
+MaintenanceLogs = pd.DataFrame(maintenance_rows, columns=['MaintenanceID','MachineID','MaintenanceType','ScheduledDate','CompletionDate','DowntimeHours','Technician'])
+MaintenanceLogs = MaintenanceLogs.merge(Machines[['MachineID','RLS_Department','RLS_Machine']], on='MachineID', how='left')
+
+# ----------------------------
+# 7️⃣ INVENTORY TABLE
+# ----------------------------
+materials = [
+    'Gear', 'Bolt', 'Bearing', 'Motor', 'Shaft', 'Pulley', 'Belt', 'Valve',
+    'Sensor', 'Pump', 'Wheel', 'Spring', 'Filter', 'Coupling', 'Rotor',
+    'Stator', 'Pipe', 'Nozzle', 'Seal', 'Bracket', 'Cam', 'Chain', 'Disc',
+    'Clutch', 'Gasket', 'Rod', 'Bushing', 'Connector', 'Plate', 'Fan'
+]
+
+inventory_rows = []
+for machine in Machines['MachineID']:
+    inventory_dates = np.random.choice(dates, 20, replace=False)
+    for d in inventory_dates:
+        part = np.random.choice(materials)
+        qty = np.random.randint(1,10)
+        inventory_rows.append([
+            f"MAT{len(inventory_rows)+1:05d}",
+            part,
+            machine,
+            qty,
+            pd.to_datetime(d)
+        ])
+Inventory = pd.DataFrame(inventory_rows, columns=['MaterialID','MaterialName','MachineID','QuantityUsed','DateUsed'])
+Inventory = Inventory.merge(Machines[['MachineID','RLS_Department','RLS_Machine']], on='MachineID', how='left')
+
+# ----------------------------
+# 8️⃣ SAVE CSV FILES
+# ----------------------------
+Machines.to_csv("Machines.csv", index=False)
+Staff.to_csv("Staff.csv", index=False)
+Departments.to_csv("Departments.csv", index=False)
+Calendar.to_csv("Calendar.csv", index=False)
+SensorData.to_csv("SensorData.csv", index=False)
+MaintenanceLogs.to_csv("MaintenanceLogs.csv", index=False)
+Inventory.to_csv("Inventory.csv", index=False)
+
+print("✅ All CSVs generated with full columns and RLS for Power BI!")
